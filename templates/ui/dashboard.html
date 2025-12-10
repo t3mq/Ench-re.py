@@ -1,0 +1,249 @@
+{% extends 'ui/base.html' %}
+
+{% block title %}Dashboard - {{ block.super }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            📊 Dashboard de Simulation
+        </h1>
+    </div>
+</div>
+
+<!-- Métriques principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-primary">Simulations Totales</h5>
+                <h2 class="display-6">{{ stats.total_simulations }}</h2>
+                <small class="text-muted">Depuis le début</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success">Transactions</h5>
+                <h2 class="display-6">{{ stats.total_transactions|floatformat:0 }}</h2>
+                <small class="text-muted">Total exécutées</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-info">Volume</h5>
+                <h2 class="display-6">{{ stats.total_volume|floatformat:0 }}</h2>
+                <small class="text-muted">Objets échangés</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-warning">Valeur</h5>
+                <h2 class="display-6">{{ stats.total_value|floatformat:0 }}€</h2>
+                <small class="text-muted">Volume financier</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Simulation en cours -->
+{% if running_simulation %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🏃‍♂️ Simulation en Cours</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID:</strong> {{ running_simulation.simulation_id }}</p>
+                        <p><strong>Scénario:</strong> {{ running_simulation.scenario|title }}</p>
+                        <p><strong>Démarrée:</strong> {{ running_simulation.start_time|date:"d/m/Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Agents:</strong> {{ running_simulation.total_agents }}</p>
+                        <p><strong>Étapes prévues:</strong> {{ running_simulation.total_steps }}</p>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 style="width: {{ running_simulation.progress_percent }}%">
+                                {{ running_simulation.progress_percent|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Actions rapides -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">🚀 Actions Rapides</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'ui:simulation_form' %}" class="btn btn-primary btn-lg">
+                        Nouvelle Simulation
+                    </a>
+                    <a href="{% url 'ui:market_overview' %}" class="btn btn-outline-primary">
+                        Vue du Marché
+                    </a>
+                    <a href="{% url 'ui:simulation_list' %}" class="btn btn-outline-secondary">
+                        Historique des Simulations
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📈 Graphique de Performance</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Simulations récentes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📋 Simulations Récentes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_simulations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Scénario</th>
+                                    <th>Agents</th>
+                                    <th>Étapes</th>
+                                    <th>Statut</th>
+                                    <th>Début</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sim in recent_simulations %}
+                                <tr>
+                                    <td>
+                                        <code>{{ sim.simulation_id|truncatechars:15 }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ sim.scenario|title }}</span>
+                                    </td>
+                                    <td>{{ sim.total_agents }}</td>
+                                    <td>{{ sim.total_steps }}</td>
+                                    <td>
+                                        {% if sim.status == 'running' %}
+                                            <span class="badge bg-success">En cours</span>
+                                        {% elif sim.status == 'completed' %}
+                                            <span class="badge bg-primary">Terminée</span>
+                                        {% elif sim.status == 'failed' %}
+                                            <span class="badge bg-danger">Échouée</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ sim.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sim.start_time|date:"d/m H:i" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'ui:simulation_detail' sim.simulation_id %}" 
+                                               class="btn btn-outline-primary">
+                                                Voir
+                                            </a>
+                                            {% if sim.results_file_path %}
+                                            <a href="{% url 'ui:download_results' sim.simulation_id %}" 
+                                               class="btn btn-outline-success">
+                                                Télécharger
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">Aucune simulation trouvée.</p>
+                        <a href="{% url 'ui:simulation_form' %}" class="btn btn-primary">
+                            Créer votre première simulation
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Graphique de performance
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data.labels|safe }},
+            datasets: [{
+                label: 'Transactions par jour',
+                data: {{ chart_data.transactions|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Auto-refresh si simulation en cours
+    {% if running_simulation %}
+    setTimeout(function() {
+        location.reload();
+    }, 10000); // Refresh toutes les 10 secondes
+    {% endif %}
+</script>
+{% endblock %}
